@@ -1,29 +1,41 @@
-import React, {ChangeEvent, useEffect, useState} from 'react';
+import React, {ChangeEvent, useEffect, useRef, useState} from 'react';
 import './App.css';
 import male from './assets/male.png'
 import female from './assets/female.png'
 
+type UserType = {
+    userId: number
+    userName: string
+    photo: string
+    message: string
+}
+
 function App() {
 
     const [value, setValue] = useState('')
-    const [users, setUsers] = useState([
-        {id: 1, name: 'Alex', photo: male, message: 'Hi man'},
-        {id: 2, name: 'Hannah', photo: female, message: 'Hi girl'},
-    ])
-
-    let ws: WebSocket;
+    const [ws, setWS] = useState<null | WebSocket>(null)
+    const [users, setUsers] = useState<UserType[]>([])
+    const messagesBlock = useRef<any>(null)
 
     console.log('App rerender')
+
+    if (ws) {
+        ws.onmessage = (messageEvent) => {
+            let newUsers = JSON.parse(messageEvent.data)
+            console.log(messageEvent)
+            setUsers([...users, ...newUsers])
+            messagesBlock.current && messagesBlock.current.scrollTo(0, messagesBlock.current.scrollHeight)
+        }
+    }
+
     useEffect(() => {
         console.log('WS rerender')
-        ws = new WebSocket('wss://social-network.samuraijs.com/handlers/ChatHandler.ashx')
-        ws.onmessage = (messageEvent) => {
-            console.log(messageEvent)
-        }
+        let localWS = new WebSocket('wss://social-network.samuraijs.com/handlers/ChatHandler.ashx')
+        setWS(localWS)
     }, [])
 
     const sendMessage = () => {
-        value && ws.send(value)
+        value && ws!.send(value)
         setValue('')
     }
 
@@ -34,10 +46,10 @@ function App() {
     return (
         <div className="App">
             <div className={'chat'}>
-                <div className={'messages'}>
-                    {users.map(u => <div key={u.id} className={'message'}>
+                <div className={'messages'} ref={messagesBlock}>
+                    {users.map((u, index) => <div key={index} className={'message'}>
                         <img src={u.photo} alt="user"/>
-                        <span><strong>{u.name} </strong></span>
+                        <span><strong>{u.userName} </strong></span>
                         <span>{u.message}</span>
                     </div>)}
                 </div>
